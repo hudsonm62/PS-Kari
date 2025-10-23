@@ -1,0 +1,110 @@
+name: Module Releaser
+
+on:
+  pull_request:
+    types: [synchronize, closed]
+    branches: ["master"]
+    paths:
+      - ".github/workflows/releaser.yml"
+      - "src/Kari/**"
+      - "scripts/publish.ps1"
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  discussions: write
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  GitHub:
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    outputs:
+      module_path: ${{ steps.zip.outputs.module_path }}
+
+    steps:
+      - name: ⚙️ Checkout code
+        uses: actions/checkout@v5
+
+      - name: 🧪 Extract Module Version
+        id: get_version
+        run: |
+          $content = Import-PowerShellDataFile './src/Kari/Kari.psd1'
+          $ModuleVersion = $content.ModuleVersion
+          echo "module_version=$ModuleVersion" >> $env:GITHUB_OUTPUT
+
+      - name: 🔍 Check Tag doesn't exist
+        id: check-tag
+        run: |
+          $ModuleVersion = "${{ steps.get_version.outputs.module_version }}"
+          $Tag = "v$ModuleVersion"
+
+          git fetch --tags
+          $tagExists = git tag --list $Tag
+          if ($tagExists) {
+            throw "❌ Tag '$Tag' already exists. Aborting release."
+          }
+          Write-Host "✅ Tag '$Tag' does not exist. Proceeding with release."
+
+          # Set output for next step
+          echo "module_version=$Tag" >> $env:GITHUB_OUTPUT
+
+      - name: 🏷️ Create Tag
+        id: create-tag
+        run: |
+          $Tag = "${{ steps.check-tag.outputs.module_version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$Tag" -m "$Tag"
+          git push origin "$Tag"
+
+      - name: 📦 Zip Module folder
+        id: zip
+        run: |
+          $ModulePath = './src/Kari'
+          $ReleaseFolder = './dist'
+          $ReleasePath = Join-Path -Path $ReleaseFolder -ChildPath "Kari.zip"
+          New-Item -ItemType Directory -Path $ReleaseFolder -Force
+          Compress-Archive -Path "$ModulePath" -DestinationPath $ReleasePath -Force
+
+          echo "release_path=$ReleasePath" >> $env:GITHUB_OUTPUT
+          echo "module_path=$ModulePath" >> $env:GITHUB_OUTPUT
+
+      - name: 🚀 Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.check-tag.outputs.module_version }}
+          name: "Module ${{ steps.check-tag.outputs.module_version }}"
+          generate_release_notes: true
+          prerelease: false
+          fail_on_unmatched_files: true
+          discussion_category_name: "Releases"
+          body: "Release Notes for all versions under [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/master/CHANGELOG.md)"
+          append_body: true
+          files: ${{ steps.zip.outputs.release_path }}
+
+      - name: 🥨 Release Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release_Pane-${{ steps.check-tag.outputs.module_version }}
+          path: ${{ steps.zip.outputs.release_path }}
+          if-no-files-found: error
+          compression-level: 9
+
+  PSGallery:
+    needs: GitHub
+    runs-on: windows-latest
+    steps:
+      - name: ⚙️ Checkout code
+        uses: actions/checkout@v5
+
+      - name: 📦 Publish to PSGallery
+        run: |
+          .\scripts\publish.ps1 -APIKey "${{ secrets.PSGALLERY_KEY }}"

@@ -1,0 +1,21 @@
+name: Get Metadata
+description: Gets relevant metadata for the run.
+outputs:
+  short-sha:
+    description: The short SHA of the commit.
+    value: ${{ steps.short-sha.outputs.sha }}
+  timestamp:
+    description: The timestamp of the run (yyyy-MM-dd_HH-mm-ss)
+    value: ${{ steps.time.outputs.formatted }}
+runs:
+  using: composite
+  steps:
+    - name: 🍕 Get Short SHA
+      uses: hudsonm62/short-sha@v1
+      id: short-sha
+
+    - name: ⏰ Get current time
+      uses: hudsonm62/datetime-action@v1
+      id: time
+      with:
+        format: yyyy-MM-dd_HH-mm-ss

@@ -1,0 +1,89 @@
+name: CI
+on: [push, workflow_dispatch]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⚙️ Checkout code
+        id: checkout
+        uses: actions/checkout@v5
+
+      - name: ✨ Markdownlint CLi2 Action
+        if: steps.checkout.outcome == 'success' && !cancelled()
+        uses: DavidAnson/markdownlint-cli2-action@v20
+        with:
+          globs: "**/*.md"
+          config: .markdownlint.jsonc
+
+      - name: ✨ Prettier Action
+        if: steps.checkout.outcome == 'success' && !cancelled()
+        uses: creyD/prettier_action@v4.6
+        with:
+          prettier_options: --config .prettierrc --check .
+          dry: true
+
+      - name: ✨ PSScriptAnalyzer Action
+        if: steps.checkout.outcome == 'success' && !cancelled()
+        uses: microsoft/psscriptanalyzer-action@v1.0
+        with:
+          path: ./src/Kari # module root
+          recurse: true
+          settings: ./PSScriptAnalyzerSettings.psd1
+          enableExit: true
+
+  test:
+    # TODO - Setup matrix for PS5
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: ⚙️ Checkout code
+        uses: actions/checkout@v5
+
+      - name: 🌌 Get Run Metadata
+        id: setup-meta
+        uses: ./.github/actions/get-metadata
+
+      - name: 🥓 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: requirements.psd1
+
+      - name: 🥓 Cache PowerShell modules
+        uses: actions/cache@v4
+        with:
+          path: $HOME/.local/share/powershell/Modules
+          key: ${{ runner.os }}-pwsh-${{ hashFiles('**/requirements.psd1') }}
+          restore-keys: |
+            ${{ runner.os }}-pwsh-
+
+      - name: 🔻 Bootstrap
+        run: ./scripts/bootstrap.ps1
+
+      - name: 🧪 Run Pester
+        id: tests
+        run: Invoke-PSake Test-CI -NoLogo
+
+      - name: 🥨 Upload coverage report
+        if: steps.tests.outcome != 'skipped' && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage_${{ steps.setup-meta.outputs.short-sha }}-${{ steps.setup-meta.outputs.timestamp }}
+          path: coverage.xml
+
+      - name: 🥨 Upload test results
+        if: steps.tests.outcome != 'skipped' && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results_${{ steps.setup-meta.outputs.short-sha }}-${{ steps.setup-meta.outputs.timestamp }}
+          path: testResults.xml
