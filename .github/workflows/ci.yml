@@ -25,7 +25,7 @@ jobs:
 
       - name: ✨ PSScriptAnalyzer Action
         if: steps.checkout.outcome == 'success' && !cancelled()
-        uses: microsoft/psscriptanalyzer-action@v1.0
+        uses: microsoft/psscriptanalyzer-action@v1.1
         with:
           path: ./src/Kari # module root
           recurse: true
