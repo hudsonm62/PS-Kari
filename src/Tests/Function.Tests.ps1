@@ -74,6 +74,7 @@ Describe "Assert-KariGraphConnection" {
 }
 
 Describe "Get-KariHuntAppResult" {
+    # TODO - Criteria Ignore Tests
     Context "Criteria Tests" {
         It "should identify known rogue application" {
             # Select a random known app from the json list
