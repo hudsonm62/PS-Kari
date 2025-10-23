@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "ms-vscode.powershell",
+        "esbenp.prettier-vscode",
+        "davidanson.vscode-markdownlint",
+        "gruntfuggly.todo-tree"
+    ]
+}

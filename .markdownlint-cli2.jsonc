@@ -1,0 +1,15 @@
+{
+    "$schema": "https://raw.githubusercontent.com/DavidAnson/markdownlint-cli2/refs/heads/main/schema/markdownlint-cli2-config-schema.json",
+    "gitignore": true,
+    "globs": ["**/*.md"],
+
+    "config": {
+        "default": true, // Inherit default settings
+        "MD007": { "indent": 4 }, // Ordered list indent
+        "MD013": false, // Disable max line length
+        "MD033": false, // Allow Inline HTML
+        "MD046": false, // Workaround for MkDocs Material Admonitions
+        "MD059": false, // Allow non-descriptive text for links
+        "no-hard-tabs": true // Use spaces for tabs
+    }
+}

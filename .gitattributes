@@ -1,0 +1,27 @@
+# Default git behavior
+* text=auto
+
+### OVERRIDES ###
+
+# CRLF => LF
+*.md             text  eol=lf
+*.gitattributes  text  eol=lf
+*.gitmodules     text  eol=lf
+*.gitignore      text  eol=lf
+*.svg            text  eol=lf
+*.jsonc          text  eol=lf
+*.json           text  eol=lf
+*.yml            text  eol=lf
+*.yaml           text  eol=lf
+*.js             text  eol=lf
+*.scss           text  eol=lf
+*.prettierrc     text  eol=lf
+*.prettierignore text  eol=lf
+**/LICENSE       text  eol=lf
+
+# Use LF for PowerShell
+*.ps1            text  eol=lf
+*.psm1           text  eol=lf
+*.psd1           text  eol=lf
+*.psc1           text  eol=lf
+*.ps1xml         text  eol=lf

@@ -1,0 +1,20 @@
+/.cache
+**/.env
+**/testResults.xml
+**/coverage.xml
+**/*.log
+**/dist
+
+# tooling
+**/*.exe
+**/*.tar
+**/*.zip
+
+# from node deps - we don't need any of it
+**/node_modules
+**/package.json
+**/package-lock.json
+
+# OS
+**/.DS_Store
+**/Thumbs.db
