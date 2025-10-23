@@ -56,10 +56,15 @@ Task 'Test-Diag' {
 #endregion
 
 #region Lint
-Task 'Lint' -Depends 'Prettier', 'ScriptAnalyzer'
+Task 'Lint' -Depends 'Prettier', 'Markdownlint', 'ScriptAnalyzer'
 Task 'Prettier' {
     exec {
         npx prettier . --check
+    }
+}
+Task 'Markdownlint' {
+    exec {
+        npx markdownlint-cli2 --config .markdownlint-cli2.jsonc
     }
 }
 Task 'ScriptAnalyzer' {
