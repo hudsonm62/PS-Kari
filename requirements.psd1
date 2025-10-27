@@ -20,9 +20,6 @@
     'Microsoft.Graph.Applications'   = @{
         Version         = '2.32.0'
     }
-    'Microsoft.Graph.Users' = @{
-        Version         = '2.32.0'
-    }
     'Microsoft.Graph.Authentication' = @{
         Version         = '2.32.0'
     }
