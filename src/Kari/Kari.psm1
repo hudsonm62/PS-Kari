@@ -51,6 +51,55 @@ function Get-KariHuntResultObject {
 
 <#
 .SYNOPSIS
+    Retrieves API Permission names for both Delegated and App-Only permissions assigned to a service principal.
+.DESCRIPTION
+    Retrieves API Permission names for both Delegated and App-Only permissions assigned to a service principal.
+
+    Currently, it doesn't distinguish between Microsoft Graph and other API permissions, so the output may contain a mix of permission names from different APIs. If any names are identical across APIs, they will appear only once in the output. This may or may not change in future versions.
+.LINK
+    https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview
+.LINK
+    https://www.coreview.com/blog/entra-app-registration-security
+#>
+function Get-KariSpPermissions {
+    [CmdletBinding()]
+    [OutputType([System.Collections.ArrayList])]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal]$App
+    )
+
+    # TODO Distinguish between Microsoft Graph and other API permissions in output, also by returning a populated PSObject
+
+    begin {
+        $PermissionScopes = New-Object System.Collections.ArrayList # '' list of scope words
+    }
+
+    process {
+        # Get Delegated Permissions
+        $Delegated = Get-MgOauth2PermissionGrant -Filter "clientId eq '$($App.Id)'"
+        foreach($Grant in $Delegated) {
+            $PermissionScopes.AddRange($Grant.Scope.Split(' ')) | Out-Null
+        }
+
+        # Get App-Only Permissions
+        $AppRoles = Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $App.Id
+        foreach($Role in $AppRoles) {
+            $ResourceSp = Get-MgServicePrincipal -ServicePrincipalId $Role.ResourceId # Get the resource service principal app for each role
+            $AppRole = $ResourceSp.AppRoles | Where-Object { $_.Id -eq $Role.AppRoleId }
+
+            $PermissionScopes.Add($AppRole.Value) | Out-Null
+        }
+    }
+
+    end {
+        return $PermissionScopes | Select-Object -Unique
+    }
+}
+Export-ModuleMember -Function Get-KariSpPermissions
+
+<#
+.SYNOPSIS
     Analyzes a Microsoft Graph Application object for suspicious indicators.
 
 .PARAMETER App
@@ -166,7 +215,7 @@ function Get-KariHuntAppResult {
                     $results.Add(
                         $(Get-KariHuntResultObject @AppCommonMeta `
                             -Issue "Display Name Matches Owner UPN" -Details "Name matches an owner's UPN name - $($App.DisplayName).")
-                    )
+                    ) | Out-Null
                     Write-Verbose "Display Name Matches Owner UPN detected: $($App.DisplayName) ($($App.AppId))"
                 }
             }
@@ -214,6 +263,27 @@ function Get-KariHuntAppResult {
                     -Issue "Old Application" -Details "Created over 3 years ago - '$($CreatedAt.ToString('yyyy-MM-dd'))'.")
             ) | Out-Null
             Write-Verbose "Old Application detected: $($App.DisplayName) ($($App.AppId))"
+        }
+
+        # Check if App has unusual or high risk API permissions
+        if( @($IgnoreCriteria) -notcontains 'HighRiskAPIPermissions') {
+            $AppPermissions = Get-KariSpPermissions -App $App
+            $DodgyPermissions = @(
+                # TODO Add more permissions as identified
+                'Directory.ReadWrite.All', 'Directory.AccessAsUser.All', 'Domain.ReadWrite.All', 'Group.ReadWrite.All',
+                'User.ReadWrite.All', 'Policy.ReadWrite.ApplicationConfiguration',
+                'Application.ReadWrite.OwnedBy', 'Application.ReadWrite.All',
+                'RoleManagement.ReadWrite.Directory', 'PrivilegedAccess.ReadWrite.AzureAD',
+                'Files.ReadWrite.All'
+            )
+            $BadPermissionsFound = $AppPermissions | Where-Object { $DodgyPermissions -contains $_ }
+            foreach ($permission in $BadPermissionsFound) {
+                $results.Add(
+                    $(Get-KariHuntResultObject @AppCommonMeta `
+                        -Issue "High Risk API Permission" -Details "Has high risk API permission - '$permission'.")
+                ) | Out-Null
+                Write-Verbose "High Risk API Permission detected: $permission"
+            }
         }
     }
     end {

@@ -95,12 +95,25 @@ Describe "Get-KariHuntAppResult" {
             Mock Get-MgApplicationByAppId {
                 Get-DummyAppReg
             } -ModuleName 'Kari'
+
             Mock Get-MgServicePrincipalOwnerAsUser {
                 $DummyUser = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphUser]::new()
                 $DummyUser.DisplayName = "Pester Identity"
                 $DummyUser.Id = [Guid]::Empty.ToString()
                 $DummyUser.UserPrincipalName = "pester.identity@contoso.com"
                 return @($DummyUser)
+            } -ModuleName 'Kari'
+
+            Mock Get-MgOauth2PermissionGrant {
+                return @() # should get mocked per test if needed
+            } -ModuleName 'Kari'
+
+            Mock Get-MgServicePrincipalAppRoleAssignment {
+                return @() # should get mocked per test if needed
+            } -ModuleName 'Kari'
+
+            Mock Get-MgServicePrincipal {
+                return @() # should get mocked per test if needed
             } -ModuleName 'Kari'
         }
 
@@ -266,5 +279,7 @@ Describe "Get-KariHuntAppResult" {
                 $_.Issue | Should -BeExactly "Old Application"
             }
         }
+
+        # TODO Add tests for high risk API permissions
     }
 }
