@@ -210,8 +210,7 @@ function Get-KariHuntAppResult {
         if (@($IgnoreCriteria) -notcontains 'DisplayNameMatchesOwnerUPN') {
             $Owners = Get-MgServicePrincipalOwnerAsUser -ServicePrincipalId $App.Id -All -ErrorAction SilentlyContinue
             foreach ($Owner in $Owners) {
-                # faster to get one owner at a time, rather than get all users and filter later
-                if ($App.DisplayName -eq $Owner.UserPrincipalName) {
+                if ($App.DisplayName.ToString() -eq $Owner.UserPrincipalName.ToString()) {
                     $results.Add(
                         $(Get-KariHuntResultObject @AppCommonMeta `
                             -Issue "Display Name Matches Owner UPN" -Details "Name matches an owner's UPN name - $($App.DisplayName).")

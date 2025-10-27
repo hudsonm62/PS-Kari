@@ -179,33 +179,24 @@ Describe "Get-KariHuntAppResult" {
                 $_.Issue | Should -BeExactly "Insecure Redirect URI"
             }
         }
-        #TODO It "should identify matching owner UPN to display name" {
-        #    Mock Get-MgUser {
-        #        $DummyUser = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphUser]::new()
-        #        $DummyUser.DisplayName = "Pester Identity"
-        #        $DummyUser.Id = [Guid]::Empty.ToString()
-        #        $DummyUser.UserPrincipalName = "pester@identity.com"
-        #        return $DummyUser
-        #    }
-        #    Mock Get-MgApplicationOwner {
-        #        $DummyOwner = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphDirectoryObject]::new()
-        #        $DummyOwner.Id = (Get-MgUser).Id # use from mock above
-        #        return $DummyOwner
-        #    }
-        #    $TestApp = Get-DummyApp -DisplayName (Get-MgUser).UserPrincipalName
+        It "should identify matching owner UPN to display name" {
+            Mock Get-MgServicePrincipalOwnerAsUser {
+                $DummyUser = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphUser]::new()
+                $DummyUser.DisplayName = "Pester Identity"
+                $DummyUser.Id = [Guid]::Empty.ToString()
+                $DummyUser.UserPrincipalName = "pester@identity.com"
+                return @($DummyUser)
+            } -ModuleName 'Kari'
 
-        #    # (Optional) sanity prints so you can see the wiring during the test run
-        #    $Owner = Get-MgApplicationOwner -ApplicationId $TestApp.Id
-        #    Write-Information "Test App DisplayName: $($TestApp.DisplayName), Owner UPN: $((Get-MgUser -UserId $Owner.Id).UserPrincipalName)" -InformationAction Continue
-        #    Write-Information "Test App ID: $($TestApp.Id), Owner ID: $($Owner.Id)" -InformationAction Continue
+            $TestApp = Get-DummyApp -DisplayName "pester@identity.com"
 
-        #    $results = Get-KariHuntAppResult -App $TestApp
-
-        #    $results | Should -Not -BeNullOrEmpty
-        #    $results | ForEach-Object {
-        #        $_.Issue | Should -BeExactly "Display Name Matches Owner UPN"
-        #    }
-        #}
+            $results = Get-KariHuntAppResult -App $TestApp
+            $results | Should -Not -BeNullOrEmpty
+            $results | Should -HaveCount 1
+            $results | ForEach-Object {
+                $_.Issue | Should -BeExactly "Display Name Matches Owner UPN"
+            }
+        }
 
         It "should identify short display names" {
             [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal[]]$TestApps = @(
