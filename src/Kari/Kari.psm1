@@ -65,16 +65,26 @@ function Get-KariHuntResultObject {
     Scans a single application object for suspicious indicators.
 
 .EXAMPLE
-    Get-MgApplication -All | Get-KariHuntAppResult
+    Get-MgServicePrincipalByAppId -AppId <AppId> | Get-KariHuntAppResult
 
-    Analyzes all applications in the tenant for suspicious indicators. Effectively the same as Invoke-KariHunt with less pre-checking.
+    Analyzes a single application in the tenant for suspicious indicators.
+
+.EXAMPLE
+    Get-MgServicePrincipal -All | Get-KariHuntAppResult
+
+    Analyzes all service principals in the tenant for suspicious indicators. Doesn't filter for Enterprise applications, which will lead to false positives.
+
+.EXAMPLE
+    Get-KariHuntAppResult -IgnoreCriteria 'OldApplication','ExpiredSecret' -App $Object
+
+    Analyzes the provided application object while ignoring checks for old applications and expired secrets.
 #>
 function Get-KariHuntAppResult {
     [CmdletBinding()]
     [OutputType([System.Collections.ArrayList])]
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        [Microsoft.Graph.PowerShell.Models.MicrosoftGraphApplication]$App,
+        [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal]$App,
 
         [Parameter(Mandatory = $false)][ValidateSet('KnownRogueApps', 'GenericName', 'NoAlphanumeric', 'CallbackURI', 'InsecureURI', 'DisplayNameMatchesOwnerUPN', 'ShortDisplayName', 'ExpiredCertificate', 'ExpiredSecret', 'OldApplication')]
         [string[]]$IgnoreCriteria = @()
@@ -82,19 +92,22 @@ function Get-KariHuntAppResult {
 
     begin {
         $results = New-Object System.Collections.ArrayList
-        $KnownRogueApps = Get-KnownRogueApplications -ErrorAction Continue
+        $KnownRogueApps = try { Get-KnownRogueApplications -ErrorAction Continue } catch { @() ; Write-Warning "Failed to retrieve known rogue applications list from GitHub." }
         $Now = Get-Date
     }
 
     process {
-        $RedirectUris = $App.PublicClient.RedirectUris
         Write-Verbose "Processing application: $($App.DisplayName)"
+
+        $AppReg = try { Get-MgApplicationByAppId -AppId $App.AppId -ErrorAction SilentlyContinue } catch { $null }
+        $RedirectUris = $App.replyUrls
+        [datetime]$CreatedAt = $App.AdditionalProperties.createdDateTime
 
         $AppCommonMeta = @{
             AppId = $App.AppId
             ObjectId = $App.Id
             DisplayName = $App.DisplayName
-            CreatedAt = $App.CreatedDateTime
+            CreatedAt = $CreatedAt
         }
 
         # Check if application matches any known rogue applications
@@ -146,9 +159,10 @@ function Get-KariHuntAppResult {
 
         # Check if application display name matches Owner(s) UPN
         if (@($IgnoreCriteria) -notcontains 'DisplayNameMatchesOwnerUPN') {
-            foreach ($Owner in (Get-MgApplicationOwner -ApplicationId $App.AppId -ErrorAction SilentlyContinue)) {
+            $Owners = Get-MgServicePrincipalOwnerAsUser -ServicePrincipalId $App.Id -All -ErrorAction SilentlyContinue
+            foreach ($Owner in $Owners) {
                 # faster to get one owner at a time, rather than get all users and filter later
-                if ($App.DisplayName -eq (Get-MgUser -UserId $Owner.Id -ErrorAction SilentlyContinue).UserPrincipalName) {
+                if ($App.DisplayName -eq $Owner.UserPrincipalName) {
                     $results.Add(
                         $(Get-KariHuntResultObject @AppCommonMeta `
                             -Issue "Display Name Matches Owner UPN" -Details "Name matches an owner's UPN name - $($App.DisplayName).")
@@ -168,8 +182,8 @@ function Get-KariHuntAppResult {
         }
 
         # Check if Application Certificates are expired
-        if (@($IgnoreCriteria) -notcontains 'ExpiredCertificate') {
-            foreach ($Cert in $App.KeyCredentials) {
+        if ($AppReg -and @($IgnoreCriteria) -notcontains 'ExpiredCertificate') {
+            foreach ($Cert in $AppReg.KeyCredentials) {
                 if ($Cert.EndDateTime -lt $Now) {
                     $results.Add(
                         $(Get-KariHuntResultObject @AppCommonMeta `
@@ -181,8 +195,8 @@ function Get-KariHuntAppResult {
         }
 
         # Check if Secrets are expired
-        if (@($IgnoreCriteria) -notcontains 'ExpiredSecret') {
-            foreach ($Secret in $App.PasswordCredentials) {
+        if ($AppReg -and @($IgnoreCriteria) -notcontains 'ExpiredSecret') {
+            foreach ($Secret in $AppReg.PasswordCredentials) {
                 if ($Secret.EndDateTime -lt $Now) {
                     $results.Add(
                         $(Get-KariHuntResultObject @AppCommonMeta `
@@ -194,10 +208,10 @@ function Get-KariHuntAppResult {
         }
 
         # Check if App is older than 3 years
-        if (@($IgnoreCriteria) -notcontains 'OldApplication' -and ($Now - $App.CreatedDateTime).TotalDays -gt 1095) {
+        if (@($IgnoreCriteria) -notcontains 'OldApplication' -and ($Now - $CreatedAt).TotalDays -gt 1095) {
             $results.Add(
                 $(Get-KariHuntResultObject @AppCommonMeta `
-                    -Issue "Old Application" -Details "Created over 3 years ago - '$($App.CreatedDateTime.ToString('yyyy-MM-dd'))'.")
+                    -Issue "Old Application" -Details "Created over 3 years ago - '$($CreatedAt.ToString('yyyy-MM-dd'))'.")
             ) | Out-Null
             Write-Verbose "Old Application detected: $($App.DisplayName) ($($App.AppId))"
         }
@@ -249,8 +263,9 @@ function Invoke-KariHunt {
     }
 
     # Get All Applications
-    $AllApps = Get-MgApplication -All -ErrorAction Stop
-    Write-Verbose "Retrieved $($AllApps.Count) applications from Microsoft Graph."
+    $AllApps = Get-MgServicePrincipal -All -ErrorAction Stop | `
+        Where-Object { $_.Tags -contains "WindowsAzureActiveDirectoryIntegratedApp" } | Sort-Object DisplayName
+    Write-Verbose "Retrieved $($AllApps.Count) Enterprise applications from Microsoft Graph."
 
     # Process Applications
     $result = $AllApps | Get-KariHuntAppResult -IgnoreCriteria $IgnoreCriteria

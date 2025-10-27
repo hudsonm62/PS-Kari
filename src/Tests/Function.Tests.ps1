@@ -14,39 +14,6 @@ BeforeDiscovery {
         }
     }
 }
-BeforeAll {
-    function Get-DummyApp {
-        [OutputType([Microsoft.Graph.PowerShell.Models.MicrosoftGraphApplication])]
-        param (
-            [string]$DisplayName = "Some App",
-            [string]$AppId = [Guid]::NewGuid().ToString(),
-            [string]$Id = [Guid]::NewGuid().ToString(),
-            [datetime]$CreatedDateTime = (Get-Date),
-            [string[]]$RedirectUris = $null,
-            [datetime]$CertEndDateTime = (Get-Date).AddYears(1),
-            [datetime]$SecretEndDateTime = (Get-Date).AddYears(1)
-        )
-        $app = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphApplication]::new()
-        $app.DisplayName = $DisplayName
-        $app.AppId = $AppId
-        $app.Id = $Id
-        $app.CreatedDateTime = $CreatedDateTime
-        $app.PublicClient.RedirectUris = $RedirectUris
-
-        #dummy cert
-        $DummyCert = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphKeyCredential]::new()
-        $DummyCert.EndDateTime = $CertEndDateTime
-        $app.KeyCredentials = @($DummyCert)
-
-        #dummy client secret
-        $DummySecret = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphPasswordCredential]::new()
-        $DummySecret.EndDateTime = $SecretEndDateTime
-        $DummySecret.DisplayName = "Dummy Secret"
-        $app.PasswordCredentials = @($DummySecret)
-
-        return $app
-    }
-}
 
 Describe "Assert-KariGraphConnection" {
     InModuleScope Kari {
@@ -76,11 +43,72 @@ Describe "Assert-KariGraphConnection" {
 Describe "Get-KariHuntAppResult" {
     # TODO - Criteria Ignore Tests
     Context "Criteria Tests" {
+        BeforeAll {
+            function Get-DummyApp {
+                [OutputType([Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal])]
+                param (
+                    [string]$DisplayName = "Some App",
+                    [string]$AppId = [Guid]::NewGuid().ToString(),
+                    [string]$Id = [Guid]::NewGuid().ToString(),
+                    [datetime]$CreatedDateTime = (Get-Date),
+                    [string[]]$RedirectUris = $null
+                )
+                $app = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal]::new()
+                $app.DisplayName = $DisplayName
+                $app.AppId = $AppId
+                $app.Id = $Id
+                $app.AdditionalProperties.createdDateTime = $CreatedDateTime
+                $app.ReplyUrls = $RedirectUris
+
+                return $app
+            }
+            function Get-DummyAppReg {
+                [OutputType([Microsoft.Graph.PowerShell.Models.MicrosoftGraphApplication])]
+                param (
+                    [string]$AppId = [Guid]::NewGuid().ToString(),
+                    [string]$DisplayName = "Some App",
+                    [Microsoft.Graph.PowerShell.Models.MicrosoftGraphPasswordCredential[]]$Secrets = @(),
+                    [datetime]$CertEndDateTime = (Get-Date).AddYears(1),
+                    [datetime]$SecretEndDateTime = (Get-Date).AddYears(1)
+                )
+                $appReg = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphApplication]::new()
+                $appReg.DisplayName = $DisplayName
+                $appReg.AppId = $AppId
+                $appReg.PasswordCredentials = $Secrets
+                $appReg.CreatedDateTime = $CreatedDateTime
+                $appReg.PublicClient.RedirectUris = $RedirectUris
+
+                #dummy cert
+                $DummyCert = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphKeyCredential]::new()
+                $DummyCert.EndDateTime = $CertEndDateTime
+                $appReg.KeyCredentials = @($DummyCert)
+
+                #dummy client secret
+                $DummySecret = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphPasswordCredential]::new()
+                $DummySecret.EndDateTime = $SecretEndDateTime
+                $DummySecret.DisplayName = "Dummy Secret"
+                $appReg.PasswordCredentials = @($DummySecret)
+
+                return $appReg
+            }
+
+            Mock Get-MgApplicationByAppId {
+                Get-DummyAppReg
+            } -ModuleName 'Kari'
+            Mock Get-MgServicePrincipalOwnerAsUser {
+                $DummyUser = [Microsoft.Graph.PowerShell.Models.MicrosoftGraphUser]::new()
+                $DummyUser.DisplayName = "Pester Identity"
+                $DummyUser.Id = [Guid]::Empty.ToString()
+                $DummyUser.UserPrincipalName = "pester.identity@contoso.com"
+                return @($DummyUser)
+            } -ModuleName 'Kari'
+        }
+
         It "should identify known rogue application" {
             # Select a random known app from the json list
             $RogueApps = Invoke-RestMethod -Uri 'https://raw.githubusercontent.com/huntresslabs/rogueapps/main/public/rogueapps.json' -Method Get
 
-            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphApplication[]]$TestApps = @(
+            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal[]]$TestApps = @(
                 $(Get-DummyApp -AppId ($RogueApps | Get-Random).appId),
                 $(Get-DummyApp -AppId ($RogueApps | Get-Random).appId),
                 $(Get-DummyApp -AppId ($RogueApps | Get-Random).appId)
@@ -95,7 +123,7 @@ Describe "Get-KariHuntAppResult" {
             }
         }
         It "should identify generic display names" {
-            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphApplication[]]$TestApps = @(
+            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal[]]$TestApps = @(
                 $(Get-DummyApp -DisplayName "Some Demo App"),
                 $(Get-DummyApp -DisplayName "Some Cool - Trial"),
                 $(Get-DummyApp -DisplayName "sample"),
@@ -110,7 +138,7 @@ Describe "Get-KariHuntAppResult" {
             }
         }
         It "should identify no alphanumeric characters in display names" {
-            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphApplication[]]$TestApps = @(
+            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal[]]$TestApps = @(
                 $(Get-DummyApp -DisplayName "...."),
                 $(Get-DummyApp -DisplayName "-@$%")
             )
@@ -122,7 +150,7 @@ Describe "Get-KariHuntAppResult" {
             }
         }
         It "should identify loopback redirect URIs" {
-            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphApplication[]]$TestApps = @(
+            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal[]]$TestApps = @(
                 $(Get-DummyApp -RedirectUris @('https://127.0.0.1:25/access', 'https://localhost:25/access')),
                 $(Get-DummyApp -RedirectUris @('https://127.0.0.1', 'https://localhost')),
                 $(Get-DummyApp -RedirectUris @('ms://127.0.0.1/', 'ms://localhost/'))
@@ -135,7 +163,7 @@ Describe "Get-KariHuntAppResult" {
             }
         }
         It "should identify insecure HTTP redirect URIs" {
-            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphApplication[]]$TestApps = @(
+            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal[]]$TestApps = @(
                 $(Get-DummyApp -RedirectUris @('http://someuri/access')),
                 $(Get-DummyApp -RedirectUris @('http://someother:80/uri'))
             )
@@ -175,7 +203,7 @@ Describe "Get-KariHuntAppResult" {
         #}
 
         It "should identify short display names" {
-            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphApplication[]]$TestApps = @(
+            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal[]]$TestApps = @(
                 $(Get-DummyApp -DisplayName "A"),
                 $(Get-DummyApp -DisplayName "AB"),
                 $(Get-DummyApp -DisplayName "x")
@@ -189,10 +217,15 @@ Describe "Get-KariHuntAppResult" {
         }
 
         It "should identify expired certs" {
-            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphApplication[]]$TestApps = @(
-                $(Get-DummyApp -CertEndDateTime (Get-Date).AddYears(-20)),
-                $(Get-DummyApp -CertEndDateTime (Get-Date).AddDays(-1))
+            Mock Get-MgApplicationByAppId {
+                Get-DummyAppReg -AppId $args[0] -CertEndDateTime (Get-Date).AddDays(-1)
+            } -ModuleName 'Kari'
+
+            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal[]]$TestApps = @(
+                $(Get-DummyApp),
+                $(Get-DummyApp)
             )
+
             $results = $TestApps | Get-KariHuntAppResult
             $results | Should -Not -BeNullOrEmpty
             $results | Should -HaveCount 2
@@ -202,10 +235,15 @@ Describe "Get-KariHuntAppResult" {
         }
 
         It "should identify expired secrets" {
-            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphApplication[]]$TestApps = @(
-                $(Get-DummyApp -SecretEndDateTime (Get-Date).AddYears(-5)),
-                $(Get-DummyApp -SecretEndDateTime (Get-Date).AddDays(-10))
+            Mock Get-MgApplicationByAppId {
+                Get-DummyAppReg -AppId $args[0] -SecretEndDateTime (Get-Date).AddDays(-1)
+            } -ModuleName 'Kari'
+
+            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal[]]$TestApps = @(
+                $(Get-DummyApp),
+                $(Get-DummyApp)
             )
+
             $results = $TestApps | Get-KariHuntAppResult
             $results | Should -Not -BeNullOrEmpty
             $results | Should -HaveCount 2
@@ -215,7 +253,7 @@ Describe "Get-KariHuntAppResult" {
         }
 
         It "should identify apps older than 3 years" {
-            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphApplication[]]$TestApps = @(
+            [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal[]]$TestApps = @(
                 $(Get-DummyApp -CreatedDateTime (Get-Date).AddYears(-4)),
                 $(Get-DummyApp -CreatedDateTime (Get-Date).AddYears(-10)),
                 $(Get-DummyApp -CreatedDateTime (Get-Date).AddYears(-3).AddDays(-1)),

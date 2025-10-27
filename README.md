@@ -1,10 +1,10 @@
 # Kari 狩り
 
-Simple and efficient Suspicious App Registration Hunter for Microsoft Tenants.
+Simple and efficient Suspicious App Hunter for Microsoft Tenants.
 
 ## Overview
 
-Kari is a tool designed to detect suspicious and stale app registrations in your Microsoft tenant. It helps identify potential security risks by analyzing apps based on a predefined criteria. This provides administrators a way to maintain a secure environment, by flagging apps that require investigation or review.
+Kari is a tool designed to detect suspicious and stale Enterprise Applications in your Microsoft tenant. It helps identify potential security risks by analyzing apps based on a predefined criteria. This provides administrators a way to maintain a secure environment, by flagging apps that require investigation or review.
 
 ## Usage
 
@@ -26,7 +26,7 @@ Invoke-KariHunt
 For more help and examples, use `Get-Help`.
 
 ```powershell
-Get-Help Invoke-KariHunt -Full
+Get-Help Kari
 ```
 
 ## What we hunt for
@@ -53,7 +53,7 @@ Kari hunts for a range of indicators that could suggest an app is suspicious, or
 
 ## Future Mitigation
 
-By default Microsoft lets any user consent and register to apps, which can lead to many risks and issues. The best way to mitigate these is to restrict app registration permissions to only trusted users or none at all. All apps can (and probably should only) be registered by IT administrators, with approvals handled through an established process.
+By default Microsoft lets any user consent and register to apps, which can lead to many risks and issues. The best way to mitigate these is to restrict app permissions to only trusted users or none at all. All apps can (and probably should only) be registered by IT administrators, with approvals handled through an established process.
 
 - [Microsoft Learn | Configure how users consent to applications](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/configure-user-consent)
 - [Microsoft Learn | Configure the admin consent workflow](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/configure-admin-consent-workflow)
