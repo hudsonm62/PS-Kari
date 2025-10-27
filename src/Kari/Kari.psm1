@@ -340,11 +340,14 @@ function Invoke-KariHunt {
     # Process Applications
     $result = $AllApps | Get-KariHuntAppResult -IgnoreCriteria $IgnoreCriteria
 
+    $NoOfApps = ($result | Select-Object -Property AppId -Unique).Count
+    $HitCount = $result.Count
+
     if($result.Count -le 0){
         Write-Information "No suspicious applications found." -InformationAction Continue
         return $null
     } else {
-        Write-Verbose "Found $($result.Count) suspicious applications."
+        Write-Verbose "Found '$HitCount' issues in '$NoOfApps' app(s)."
         return $result
     }
 }
