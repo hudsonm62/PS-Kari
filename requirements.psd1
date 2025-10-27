@@ -26,6 +26,9 @@
     'Microsoft.Graph.Authentication' = @{
         Version         = '2.32.0'
     }
+    'Microsoft.Graph.Identity.SignIns' = @{
+        Version         = '2.32.0'
+    }
 
     # node dev deps
     'prettier'           = @{

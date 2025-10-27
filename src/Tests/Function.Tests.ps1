@@ -8,7 +8,7 @@ BeforeDiscovery {
         Import-Module $KariRoot -Force -ErrorAction Stop
     }
 
-    foreach ($module in @('Microsoft.Graph.Authentication', 'Microsoft.Graph.Applications')) {
+    foreach ($module in @('Microsoft.Graph.Authentication', 'Microsoft.Graph.Applications', 'Microsoft.Graph.Identity.SignIns')) {
         if(-not (Get-Module $module -ErrorAction SilentlyContinue)){
             Import-Module $module -Force -ErrorAction Stop
         }
