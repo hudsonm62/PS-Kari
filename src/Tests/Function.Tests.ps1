@@ -8,7 +8,7 @@ BeforeDiscovery {
         Import-Module $KariRoot -Force -ErrorAction Stop
     }
 
-    foreach ($module in @('Microsoft.Graph.Authentication', 'Microsoft.Graph.Applications', 'Microsoft.Graph.Identity.SignIns')) {
+    foreach ($module in @('Microsoft.Graph.Authentication', 'Microsoft.Graph.Applications', 'Microsoft.Graph.Identity.SignIns', 'Microsoft.Graph.Users')) {
         if(-not (Get-Module $module -ErrorAction SilentlyContinue)){
             Import-Module $module -Force -ErrorAction Stop
         }
@@ -104,16 +104,8 @@ Describe "Get-KariHuntAppResult" {
                 return @($DummyUser)
             } -ModuleName 'Kari'
 
-            Mock Get-MgOauth2PermissionGrant {
-                return @() # should get mocked per test if needed
-            } -ModuleName 'Kari'
-
-            Mock Get-MgServicePrincipalAppRoleAssignment {
-                return @() # should get mocked per test if needed
-            } -ModuleName 'Kari'
-
-            Mock Get-MgServicePrincipal {
-                return @() # should get mocked per test if needed
+            Mock Get-KariSpPermissions {
+                return @()
             } -ModuleName 'Kari'
         }
 
@@ -280,6 +272,19 @@ Describe "Get-KariHuntAppResult" {
             }
         }
 
-        # TODO Add tests for high risk API permissions
+        It "should identify apps with risky API permissions" {
+            # Mock the SpPermissions for now, this will be tested on its own
+            Mock Get-KariSpPermissions {
+                return @('Directory.AccessAsUser.All', 'Domain.ReadWrite.All', 'user.readwrite.all', 'gROUP.rEADWRITE.aLL', 'Some.Permission')
+            } -ModuleName 'Kari'
+
+            $TestApp = Get-DummyApp -DisplayName "Very Risky Application"
+            $results = $TestApp | Get-KariHuntAppResult
+            $results | Should -Not -BeNullOrEmpty
+            $results | Should -HaveCount 4
+            $results | ForEach-Object {
+                $_.Issue | Should -BeExactly "High Risk API Permission"
+            }
+        }
     }
 }
