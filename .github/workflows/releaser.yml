@@ -91,7 +91,7 @@ jobs:
           files: ${{ steps.zip.outputs.release_path }}
 
       - name: 🥨 Release Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release_Pane-${{ steps.check-tag.outputs.module_version }}
           path: ${{ steps.zip.outputs.release_path }}
