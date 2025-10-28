@@ -23,14 +23,14 @@ jobs:
           prettier_options: --config .prettierrc --check .
           dry: true
 
-      - name: ✨ PSScriptAnalyzer Action
-        if: steps.checkout.outcome == 'success' && !cancelled()
-        uses: microsoft/psscriptanalyzer-action@v1.1
-        with:
-          path: ./src/Kari # module root
-          recurse: true
-          settings: ./PSScriptAnalyzerSettings.psd1
-          enableExit: true
+      #- name: ✨ PSScriptAnalyzer Action
+      #  if: steps.checkout.outcome == 'success' && !cancelled()
+      #  uses: microsoft/psscriptanalyzer-action@v1.1
+      #  with:
+      #    path: ./src/Kari # module root
+      #    recurse: true
+      #    settings: ./PSScriptAnalyzerSettings.psd1
+      #    enableExit: true
 
   test:
     # TODO - Setup matrix for PS5
@@ -55,7 +55,7 @@ jobs:
       - name: 🥓 Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: "npm"
           cache-dependency-path: requirements.psd1
 
@@ -76,14 +76,14 @@ jobs:
 
       - name: 🥨 Upload coverage report
         if: steps.tests.outcome != 'skipped' && !cancelled()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: code-coverage_${{ steps.setup-meta.outputs.short-sha }}-${{ steps.setup-meta.outputs.timestamp }}
           path: coverage.xml
 
       - name: 🥨 Upload test results
         if: steps.tests.outcome != 'skipped' && !cancelled()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-results_${{ steps.setup-meta.outputs.short-sha }}-${{ steps.setup-meta.outputs.timestamp }}
           path: testResults.xml

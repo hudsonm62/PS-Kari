@@ -3,7 +3,7 @@
 RootModule = 'Kari.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.0.1'
+ModuleVersion = '0.1.0'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -21,7 +21,7 @@ CompanyName = ''
 Copyright = '(c) Hudson M. Apache License 2.0'
 
 # Description of the functionality provided by this module
-Description = 'Simple and efficient Suspicious App Registration Hunter for Microsoft Tenants.'
+Description = 'Simple and efficient Suspicious App Hunter for Microsoft Tenants.'
 
 # Minimum version of the PowerShell engine required by this module
 PowerShellVersion = '5.1'
@@ -42,7 +42,7 @@ PowerShellVersion = '5.1'
 # ProcessorArchitecture = ''
 
 # Modules that must be imported into the global environment prior to importing this module
-# RequiredModules = @()
+RequiredModules = @('Microsoft.Graph.Applications', 'Microsoft.Graph.Identity.SignIns', 'Microsoft.Graph.Authentication')
 
 # Assemblies that must be loaded prior to importing this module
 # RequiredAssemblies = @()
@@ -60,7 +60,7 @@ PowerShellVersion = '5.1'
 # NestedModules = @()
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = 'Invoke-KariHunt', 'Get-KariHuntAppResult'
+FunctionsToExport = 'Invoke-KariHunt', 'Get-KariHuntAppResult', 'Get-KariSpPermissions'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = ''
@@ -86,7 +86,7 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = @()
+        Tags = @('module', 'm365', 'security', 'audit', 'hunter', 'automation')
 
         # A URL to the license for this module.
         LicenseUri = 'https://github.com/hudsonm62/PS-Kari/blob/master/LICENSE'

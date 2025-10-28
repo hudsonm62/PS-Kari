@@ -26,6 +26,24 @@ function Get-KnownRogueApplications {
     $JsonUri = 'https://raw.githubusercontent.com/huntresslabs/rogueapps/main/public/rogueapps.json'
     return Invoke-RestMethod -Uri $JsonUri -Method Get
 }
+
+function Get-KariHuntResultObject {
+    [CmdletBinding()]
+    param (
+        [guid]$AppId, [guid]$ObjectId, [string]$DisplayName,
+        [string]$Issue, [string]$Details,
+        [datetime]$CreatedAt
+    )
+
+    return [PSCustomObject]@{
+        AppId       = $AppId
+        ObjectId    = $ObjectId
+        DisplayName = $DisplayName
+        Issue       = $Issue
+        Details     = $Details
+        CreatedAt   = $CreatedAt
+    }
+}
 #endregion
 
 
@@ -33,13 +51,77 @@ function Get-KnownRogueApplications {
 
 <#
 .SYNOPSIS
-    Analyzes a Microsoft Graph Application object for suspicious indicators.
+    Retrieves API Permission names for both Delegated and App-Only permissions assigned to a service principal.
+.DESCRIPTION
+    Retrieves API Permission names for both Delegated and App-Only permissions assigned to a service principal.
+
+    Currently, it doesn't distinguish between Microsoft Graph and other API permissions, so the output may contain a mix of permission names from different APIs. If any names are identical across APIs, they will appear only once in the output. This may or may not change in future versions.
 
 .PARAMETER App
-    The Microsoft Graph Application object to analyze. Supports multiple objects via pipeline input.
+    The Service Principal object representing the application to analyze.
+
+.EXAMPLE
+    $App = Get-MgServicePrincipalByAppId -AppId '<AppId>'
+    $Permissions = Get-KariSpPermissions -App $App
+
+    Retrieves a string array of permission names assigned to the specified application.
+
+.LINK
+    https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview
+.LINK
+    https://www.coreview.com/blog/entra-app-registration-security
+#>
+function Get-KariSpPermissions {
+    [CmdletBinding()]
+    [OutputType([System.Collections.ArrayList])]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal]$App
+    )
+
+    # TODO Distinguish between Microsoft Graph and other API permissions in output, also by returning a populated PSObject
+
+    begin {
+        $PermissionScopes = New-Object System.Collections.ArrayList # '' list of scope words
+    }
+
+    process {
+        # Get Delegated Permissions
+        $Delegated = Get-MgOauth2PermissionGrant -Filter "clientId eq '$($App.Id)'"
+        foreach($Grant in $Delegated) {
+            $PermissionScopes.AddRange($Grant.Scope.Split(' ')) | Out-Null
+        }
+
+        # Get App-Only Permissions
+        $AppRoles = Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $App.Id
+        foreach($Role in $AppRoles) {
+            $ResourceSp = Get-MgServicePrincipal -ServicePrincipalId $Role.ResourceId # Get the resource service principal app for each role
+            $AppRole = $ResourceSp.AppRoles | Where-Object { $_.Id -eq $Role.AppRoleId }
+
+            $PermissionScopes.Add($AppRole.Value) | Out-Null
+        }
+    }
+
+    end {
+        return $PermissionScopes | Select-Object -Unique
+    }
+}
+Export-ModuleMember -Function Get-KariSpPermissions
+
+<#
+.SYNOPSIS
+    Analyzes a Service Principal application for suspicious indicators.
+
+.DESCRIPTION
+    Analyzes a Service Principal application for suspicious indicators by checking the application against known indicators of compromise and best practices.
+
+    Best used when scanning a subset of applications, retrieved via Get-MgServicePrincipal with appropriate filtering. Otherwise use 'Invoke-KariHunt' to scan all Enterprise Applications in the tenant.
+
+.PARAMETER App
+    The Service Principal object representing the application to analyze.
 
 .PARAMETER IgnoreCriteria
-    An array of criteria to ignore during analysis. Possible values: 'KnownRogueApps', 'GenericName', 'NoAlphanumeric', 'CallbackURI', 'InsecureURI', 'DisplayNameMatchesOwnerUPN', 'ShortDisplayName', 'ExpiredCertificate', 'ExpiredSecret', 'OldApplication'.
+    An array of criteria to ignore during analysis. See the Validation Set for possible values.
 
 .EXAMPLE
     $SomeAppObject | Get-KariHuntAppResult
@@ -47,97 +129,111 @@ function Get-KnownRogueApplications {
     Scans a single application object for suspicious indicators.
 
 .EXAMPLE
-    Get-MgApplication -All | Get-KariHuntAppResult
+    Get-MgServicePrincipalByAppId -AppId <AppId> | Get-KariHuntAppResult
 
-    Analyzes all applications in the tenant for suspicious indicators. Effectively the same as Invoke-KariHunt with less pre-checking.
+    Analyzes a single application in the tenant for suspicious indicators.
+
+.EXAMPLE
+    Get-MgServicePrincipal -All | Get-KariHuntAppResult
+
+    Analyzes all service principals in the tenant for suspicious indicators. Doesn't filter for Enterprise applications, which will lead to false positives.
+
+.EXAMPLE
+    Get-KariHuntAppResult -IgnoreCriteria 'OldApplication','ExpiredSecret' -App $Object
+
+    Analyzes the provided application object while ignoring checks for old applications and expired secrets.
 #>
 function Get-KariHuntAppResult {
     [CmdletBinding()]
     [OutputType([System.Collections.ArrayList])]
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        [Microsoft.Graph.PowerShell.Models.MicrosoftGraphApplication]$App,
+        [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal]$App,
 
-        [Parameter(Mandatory = $false)][ValidateSet('KnownRogueApps', 'GenericName', 'NoAlphanumeric', 'CallbackURI', 'InsecureURI', 'DisplayNameMatchesOwnerUPN', 'ShortDisplayName', 'ExpiredCertificate', 'ExpiredSecret', 'OldApplication')]
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('KnownRogueApps', 'GenericName', 'NoAlphanumeric', 'CallbackURI',
+                     'InsecureURI', 'DisplayNameMatchesOwnerUPN', 'ShortDisplayName', 'ExpiredCertificate',
+                     'ExpiredSecret', 'OldApplication', 'HighRiskAPIPermissions'
+        )]
         [string[]]$IgnoreCriteria = @()
     )
 
     begin {
         $results = New-Object System.Collections.ArrayList
-        $KnownRogueApps = Get-KnownRogueApplications -ErrorAction Continue
+        $KnownRogueApps = try { Get-KnownRogueApplications -ErrorAction Continue } catch { @() ; Write-Warning "Failed to retrieve known rogue applications list from GitHub." }
         $Now = Get-Date
     }
 
     process {
-        $RedirectUris = $App.PublicClient.RedirectUris
         Write-Verbose "Processing application: $($App.DisplayName)"
+
+        $AppReg = try { Get-MgApplicationByAppId -AppId $App.AppId -ErrorAction SilentlyContinue } catch { $null }
+        $RedirectUris = $App.replyUrls
+        [datetime]$CreatedAt = $App.AdditionalProperties.createdDateTime
+
+        $AppCommonMeta = @{
+            AppId = $App.AppId
+            ObjectId = $App.Id
+            DisplayName = $App.DisplayName
+            CreatedAt = $CreatedAt
+        }
 
         # Check if application matches any known rogue applications
         if (@($IgnoreCriteria) -notcontains 'KnownRogueApps' -and ($KnownRogueApps | Where-Object { $App.AppId -eq $_.AppId })) {
-            $results.Add([PSCustomObject]@{
-                AppId = $App.AppId
-                DisplayName = $App.DisplayName
-                Issue = "Known Rogue Application"
-                Details = "This application is listed in the known rogue applications database."
-            }) | Out-Null
+            $results.Add(
+                $(Get-KariHuntResultObject @AppCommonMeta `
+                    -Issue "Known Rogue Application" -Details "App listed in a known rogue applications database - '$($App.DisplayName)'.")
+            ) | Out-Null
             Write-Verbose "Rogue Application detected: $($App.DisplayName) ($($App.AppId))"
         }
 
         # Check if application display name similar to 'Test', 'Test app', etc.
         if (@($IgnoreCriteria) -notcontains 'GenericName' -and $App.DisplayName -match '(?i)(?:demo|test|testing|sample|example|placeholder|dummy|temp|trial)') {
-            $results.Add([PSCustomObject]@{
-                AppId = $App.AppId
-                DisplayName = $App.DisplayName
-                Issue = "Generic Application Name"
-                Details = "The application has a generic name which may indicate a test or placeholder application."
-            }) | Out-Null
+            $results.Add(
+                $(Get-KariHuntResultObject @AppCommonMeta `
+                    -Issue "Generic Application Name" -Details "Generic/non-meaningful named app - '$($App.DisplayName)'.")
+            ) | Out-Null
             Write-Verbose "Generic Application Name detected: $($App.DisplayName) ($($App.AppId))"
         }
 
         # Check if application name contains no alphanumeric characters
         if (@($IgnoreCriteria) -notcontains 'NoAlphanumeric' -and $App.DisplayName -notmatch '[a-zA-Z0-9]') {
-            $results.Add([PSCustomObject]@{
-                AppId = $App.AppId
-                DisplayName = $App.DisplayName
-                Issue = "No Alphanumeric Characters"
-                Details = "The application name contains no alphanumeric characters."
-            }) | Out-Null
+            $results.Add(
+                $(Get-KariHuntResultObject @AppCommonMeta `
+                    -Issue "No Alphanumeric Characters" -Details "Name contains no alphanumeric characters - '$($App.DisplayName)'.")
+            ) | Out-Null
             Write-Verbose "No Alphanumeric Characters detected: $($App.DisplayName) ($($App.AppId))"
         }
 
         # Check if application reply URLs contain localhost or 127.0.0.1
-        if (@($IgnoreCriteria) -notcontains 'CallbackURI' -and $RedirectUris -match 'localhost|127\.0\.0\.1') {
-            $results.Add([PSCustomObject]@{
-                AppId = $App.AppId
-                DisplayName = $App.DisplayName
-                Issue = "Callback Redirect URI"
-                Details = "The application contains a loopback redirect URI."
-            }) | Out-Null
+        $CallbackMatch = $RedirectUris -match 'localhost|127\.0\.0\.1'
+        if (@($IgnoreCriteria) -notcontains 'CallbackURI' -and $CallbackMatch) {
+            $results.Add(
+                $(Get-KariHuntResultObject @AppCommonMeta `
+                    -Issue "Callback Redirect URI" -Details "Contains a loopback redirect URI - '$($CallbackMatch -join ', ')'.")
+            ) | Out-Null
             Write-Verbose "Callback Redirect URI detected: $($App.DisplayName) ($($App.AppId))"
         }
 
         # Check if application reply URL is HTTP (not encrypted)
-        if (@($IgnoreCriteria) -notcontains 'InsecureURI' -and $RedirectUris -match '^http://') {
-            $results.Add([PSCustomObject]@{
-                AppId = $App.AppId
-                DisplayName = $App.DisplayName
-                Issue = "Insecure Redirect URI"
-                Details = "The application contains an insecure HTTP redirect URI."
-            }) | Out-Null
+        $RedirectMatch = $RedirectUris -match '^http://'
+        if (@($IgnoreCriteria) -notcontains 'InsecureURI' -and $RedirectMatch) {
+            $results.Add(
+                $(Get-KariHuntResultObject @AppCommonMeta `
+                    -Issue "Insecure Redirect URI" -Details "Contains insecure HTTP redirect URI - '$($RedirectMatch -join ', ')'.")
+            ) | Out-Null
             Write-Verbose "Insecure Redirect URI detected: $($App.DisplayName) ($($App.AppId))"
         }
 
         # Check if application display name matches Owner(s) UPN
         if (@($IgnoreCriteria) -notcontains 'DisplayNameMatchesOwnerUPN') {
-            foreach ($Owner in (Get-MgApplicationOwner -ApplicationId $App.AppId -ErrorAction SilentlyContinue)) {
-                # faster to get one owner at a time, rather than get all users and filter later
-                if ($App.DisplayName -eq (Get-MgUser -UserId $Owner.Id -ErrorAction SilentlyContinue).UserPrincipalName) {
-                    $results.Add([PSCustomObject]@{
-                        AppId = $App.AppId
-                        DisplayName = $App.DisplayName
-                        Issue = "Display Name Matches Owner UPN"
-                        Details = "The application display name matches an owner's user principal name."
-                    }) | Out-Null
+            $Owners = Get-MgServicePrincipalOwnerAsUser -ServicePrincipalId $App.Id -All -ErrorAction SilentlyContinue
+            foreach ($Owner in $Owners) {
+                if ($App.DisplayName.ToString() -eq $Owner.UserPrincipalName.ToString()) {
+                    $results.Add(
+                        $(Get-KariHuntResultObject @AppCommonMeta `
+                            -Issue "Display Name Matches Owner UPN" -Details "Name matches an owner's UPN name - $($App.DisplayName).")
+                    ) | Out-Null
                     Write-Verbose "Display Name Matches Owner UPN detected: $($App.DisplayName) ($($App.AppId))"
                 }
             }
@@ -145,54 +241,67 @@ function Get-KariHuntAppResult {
 
         # Check if application display name is less than 3 characters
         if (@($IgnoreCriteria) -notcontains 'ShortDisplayName' -and $App.DisplayName.Length -lt 3) {
-            $results.Add([PSCustomObject]@{
-                AppId = $App.AppId
-                DisplayName = $App.DisplayName
-                Issue = "Short Display Name"
-                Details = "The application display name is less than 3 characters."
-            }) | Out-Null
+            $results.Add(
+                $(Get-KariHuntResultObject @AppCommonMeta `
+                    -Issue "Short Display Name" -Details "Display name is less than 3 characters - '$($App.DisplayName)'.")
+            ) | Out-Null
             Write-Verbose "Short Display Name detected: $($App.DisplayName) ($($App.AppId))"
         }
 
         # Check if Application Certificates are expired
-        if (@($IgnoreCriteria) -notcontains 'ExpiredCertificate') {
-            foreach ($Cert in $App.KeyCredentials) {
+        if ($AppReg -and @($IgnoreCriteria) -notcontains 'ExpiredCertificate') {
+            foreach ($Cert in $AppReg.KeyCredentials) {
                 if ($Cert.EndDateTime -lt $Now) {
-                    $results.Add([PSCustomObject]@{
-                        AppId = $App.AppId
-                        DisplayName = $App.DisplayName
-                        Issue = "Expired Certificate"
-                        Details = "The application has an expired certificate."
-                    }) | Out-Null
+                    $results.Add(
+                        $(Get-KariHuntResultObject @AppCommonMeta `
+                            -Issue "Expired Certificate" -Details "Has an expired certificate - '$($Cert.DisplayName)'.")
+                    ) | Out-Null
                     Write-Verbose "Expired Certificate detected: $($App.DisplayName) ($($App.AppId))"
                 }
             }
         }
 
         # Check if Secrets are expired
-        if (@($IgnoreCriteria) -notcontains 'ExpiredSecret') {
-            foreach ($Secret in $App.PasswordCredentials) {
+        if ($AppReg -and @($IgnoreCriteria) -notcontains 'ExpiredSecret') {
+            foreach ($Secret in $AppReg.PasswordCredentials) {
                 if ($Secret.EndDateTime -lt $Now) {
-                    $results.Add([PSCustomObject]@{
-                        AppId = $App.AppId
-                        DisplayName = $App.DisplayName
-                        Issue = "Expired Secret"
-                        Details = "The application has an expired secret."
-                    }) | Out-Null
+                    $results.Add(
+                        $(Get-KariHuntResultObject @AppCommonMeta `
+                            -Issue "Expired Secret" -Details "Has an expired secret - '$($Secret.DisplayName)'.")
+                    ) | Out-Null
                     Write-Verbose "Expired Secret detected: $($App.DisplayName) ($($App.AppId))"
                 }
             }
         }
 
         # Check if App is older than 3 years
-        if (@($IgnoreCriteria) -notcontains 'OldApplication' -and ($Now - $App.CreatedDateTime).TotalDays -gt 1095) {
-            $results.Add([PSCustomObject]@{
-                AppId = $App.AppId
-                DisplayName = $App.DisplayName
-                Issue = "Old Application"
-                Details = "The application was created more than 3 years ago."
-            }) | Out-Null
+        if (@($IgnoreCriteria) -notcontains 'OldApplication' -and ($Now - $CreatedAt).TotalDays -gt 1095) {
+            $results.Add(
+                $(Get-KariHuntResultObject @AppCommonMeta `
+                    -Issue "Old Application" -Details "Created over 3 years ago - '$($CreatedAt.ToString('yyyy-MM-dd'))'.")
+            ) | Out-Null
             Write-Verbose "Old Application detected: $($App.DisplayName) ($($App.AppId))"
+        }
+
+        # Check if App has unusual or high risk API permissions
+        if( @($IgnoreCriteria) -notcontains 'HighRiskAPIPermissions') {
+            $AppPermissions = Get-KariSpPermissions -App $App
+            $DodgyPermissions = @(
+                # TODO Add more permissions as identified
+                'Directory.ReadWrite.All', 'Directory.AccessAsUser.All', 'Domain.ReadWrite.All', 'Group.ReadWrite.All',
+                'User.ReadWrite.All', 'Policy.ReadWrite.ApplicationConfiguration',
+                'Application.ReadWrite.OwnedBy', 'Application.ReadWrite.All',
+                'RoleManagement.ReadWrite.Directory', 'PrivilegedAccess.ReadWrite.AzureAD',
+                'Files.ReadWrite.All'
+            )
+            $BadPermissionsFound = $AppPermissions | Where-Object { $DodgyPermissions -contains $_ }
+            foreach ($permission in $BadPermissionsFound) {
+                $results.Add(
+                    $(Get-KariHuntResultObject @AppCommonMeta `
+                        -Issue "High Risk API Permission" -Details "Has high risk API permission - '$permission'.")
+                ) | Out-Null
+                Write-Verbose "High Risk API Permission detected: $permission"
+            }
         }
     }
     end {
@@ -209,7 +318,7 @@ Export-ModuleMember -Function Get-KariHuntAppResult
     Hunts down any suspicious applications in the tenant by analyzing a set of properties against known indicators of compromise and best practices.
 
 .PARAMETER IgnoreCriteria
-    An array of criteria to ignore during analysis. Possible values: 'KnownRogueApps', 'GenericName', 'NoAlphanumeric', 'CallbackURI', 'InsecureURI', 'DisplayNameMatchesOwnerUPN', 'ShortDisplayName', 'ExpiredCertificate', 'ExpiredSecret', 'OldApplication'.
+    An array of criteria to ignore during analysis. See the Validation Set for possible values.
 
 .EXAMPLE
     Invoke-KariHunt
@@ -232,7 +341,11 @@ Export-ModuleMember -Function Get-KariHuntAppResult
 function Invoke-KariHunt {
     [CmdletBinding()][Alias('ikh')]
     param (
-        [Parameter(Mandatory = $false)][ValidateSet('KnownRogueApps', 'GenericName', 'NoAlphanumeric', 'CallbackURI', 'InsecureURI', 'DisplayNameMatchesOwnerUPN', 'ShortDisplayName', 'ExpiredCertificate', 'ExpiredSecret', 'OldApplication')]
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('KnownRogueApps', 'GenericName', 'NoAlphanumeric', 'CallbackURI',
+                     'InsecureURI', 'DisplayNameMatchesOwnerUPN', 'ShortDisplayName', 'ExpiredCertificate',
+                     'ExpiredSecret', 'OldApplication', 'HighRiskAPIPermissions'
+        )]
         [string[]]$IgnoreCriteria = @()
     )
 
@@ -242,17 +355,21 @@ function Invoke-KariHunt {
     }
 
     # Get All Applications
-    $AllApps = Get-MgApplication -All -ErrorAction Stop
-    Write-Verbose "Retrieved $($AllApps.Count) applications from Microsoft Graph."
+    $AllApps = Get-MgServicePrincipal -All -ErrorAction Stop | `
+        Where-Object { $_.Tags -contains "WindowsAzureActiveDirectoryIntegratedApp" } | Sort-Object DisplayName
+    Write-Verbose "Retrieved $($AllApps.Count) Enterprise applications from Microsoft Graph."
 
     # Process Applications
     $result = $AllApps | Get-KariHuntAppResult -IgnoreCriteria $IgnoreCriteria
+
+    $NoOfApps = ($result | Select-Object -Property AppId -Unique).Count
+    $HitCount = $result.Count
 
     if($result.Count -le 0){
         Write-Information "No suspicious applications found." -InformationAction Continue
         return $null
     } else {
-        Write-Verbose "Found $($result.Count) suspicious applications."
+        Write-Verbose "Found '$HitCount' issues in '$NoOfApps' app(s)."
         return $result
     }
 }

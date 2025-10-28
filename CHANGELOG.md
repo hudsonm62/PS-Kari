@@ -6,7 +6,14 @@ The format is based on [Keep a Changelog] and this project adheres to [Semantic 
 
 ## [Unreleased]
 
-## [v0.1.0] - 2025-00-00
+## [v0.1.0] - 2025-10-28
+
+### Added
+
+- Initial release of Kari module:
+    - Main Kari functions.
+    - `Get-Help` documentation and samples.
+    - Initial Pester tests.
 
 <!--TEMPLATE
 ## [v0.0.0] - YYYY-MM-YY

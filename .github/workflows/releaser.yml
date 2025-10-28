@@ -91,9 +91,9 @@ jobs:
           files: ${{ steps.zip.outputs.release_path }}
 
       - name: 🥨 Release Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
-          name: release_Pane-${{ steps.check-tag.outputs.module_version }}
+          name: release_Kari-${{ steps.check-tag.outputs.module_version }}
           path: ${{ steps.zip.outputs.release_path }}
           if-no-files-found: error
           compression-level: 9
@@ -107,4 +107,6 @@ jobs:
 
       - name: 📦 Publish to PSGallery
         run: |
-          .\scripts\publish.ps1 -APIKey "${{ secrets.PSGALLERY_KEY }}"
+          .\scripts\publish.ps1 -APIKey "$env:PSGALLERY_KEY"
+        env:
+          PSGALLERY_KEY: ${{ secrets.PSGALLERY_KEY }}
