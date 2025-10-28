@@ -1,11 +1,15 @@
 param(
     [Parameter()]
     [ValidateNotNullOrEmpty()]
-    $APIKey = $env:PSGALLERY_KEY
+    $APIKey = $env:PSGALLERY_KEY,
+
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Path
 )
 
 # validation
-$Path = Resolve-Path (Join-Path -Path $PSScriptRoot -ChildPath '../src/Kari') -ErrorAction Stop | Out-Null
+Resolve-Path $Path -ErrorAction Stop | Out-Null
 $DataFile = Join-Path -Path $Path -ChildPath 'Kari.psd1'
 $Manifest = Test-ModuleManifest -Path $DataFile -ErrorAction Stop
 
