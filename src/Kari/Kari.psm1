@@ -56,6 +56,16 @@ function Get-KariHuntResultObject {
     Retrieves API Permission names for both Delegated and App-Only permissions assigned to a service principal.
 
     Currently, it doesn't distinguish between Microsoft Graph and other API permissions, so the output may contain a mix of permission names from different APIs. If any names are identical across APIs, they will appear only once in the output. This may or may not change in future versions.
+
+.PARAMETER App
+    The Service Principal object representing the application to analyze.
+
+.EXAMPLE
+    $App = Get-MgServicePrincipalByAppId -AppId '<AppId>'
+    $Permissions = Get-KariSpPermissions -App $App
+
+    Retrieves a string array of permission names assigned to the specified application.
+
 .LINK
     https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview
 .LINK
@@ -100,13 +110,18 @@ Export-ModuleMember -Function Get-KariSpPermissions
 
 <#
 .SYNOPSIS
-    Analyzes a Microsoft Graph Application object for suspicious indicators.
+    Analyzes a Service Principal application for suspicious indicators.
+
+.DESCRIPTION
+    Analyzes a Service Principal application for suspicious indicators by checking the application against known indicators of compromise and best practices.
+
+    Best used when scanning a subset of applications, retrieved via Get-MgServicePrincipal with appropriate filtering. Otherwise use 'Invoke-KariHunt' to scan all Enterprise Applications in the tenant.
 
 .PARAMETER App
-    The Microsoft Graph Application object to analyze. Supports multiple objects via pipeline input.
+    The Service Principal object representing the application to analyze.
 
 .PARAMETER IgnoreCriteria
-    An array of criteria to ignore during analysis. Possible values: 'KnownRogueApps', 'GenericName', 'NoAlphanumeric', 'CallbackURI', 'InsecureURI', 'DisplayNameMatchesOwnerUPN', 'ShortDisplayName', 'ExpiredCertificate', 'ExpiredSecret', 'OldApplication'.
+    An array of criteria to ignore during analysis. See the Validation Set for possible values.
 
 .EXAMPLE
     $SomeAppObject | Get-KariHuntAppResult
@@ -303,7 +318,7 @@ Export-ModuleMember -Function Get-KariHuntAppResult
     Hunts down any suspicious applications in the tenant by analyzing a set of properties against known indicators of compromise and best practices.
 
 .PARAMETER IgnoreCriteria
-    An array of criteria to ignore during analysis. Possible values: 'KnownRogueApps', 'GenericName', 'NoAlphanumeric', 'CallbackURI', 'InsecureURI', 'DisplayNameMatchesOwnerUPN', 'ShortDisplayName', 'ExpiredCertificate', 'ExpiredSecret', 'OldApplication'.
+    An array of criteria to ignore during analysis. See the Validation Set for possible values.
 
 .EXAMPLE
     Invoke-KariHunt
