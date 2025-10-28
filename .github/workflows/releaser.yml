@@ -93,7 +93,7 @@ jobs:
       - name: 🥨 Release Artifact
         uses: actions/upload-artifact@v5
         with:
-          name: release_Pane-${{ steps.check-tag.outputs.module_version }}
+          name: release_Kari-${{ steps.check-tag.outputs.module_version }}
           path: ${{ steps.zip.outputs.release_path }}
           if-no-files-found: error
           compression-level: 9
