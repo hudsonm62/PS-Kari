@@ -107,4 +107,6 @@ jobs:
 
       - name: 📦 Publish to PSGallery
         run: |
-          .\scripts\publish.ps1 -APIKey "${{ secrets.PSGALLERY_KEY }}"
+          .\scripts\publish.ps1 -APIKey "$env:PSGALLERY_KEY"
+        env:
+          PSGALLERY_KEY: ${{ secrets.PSGALLERY_KEY }}
