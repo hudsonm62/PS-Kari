@@ -135,7 +135,11 @@ function Get-KariHuntAppResult {
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal]$App,
 
-        [Parameter(Mandatory = $false)][ValidateSet('KnownRogueApps', 'GenericName', 'NoAlphanumeric', 'CallbackURI', 'InsecureURI', 'DisplayNameMatchesOwnerUPN', 'ShortDisplayName', 'ExpiredCertificate', 'ExpiredSecret', 'OldApplication')]
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('KnownRogueApps', 'GenericName', 'NoAlphanumeric', 'CallbackURI',
+                     'InsecureURI', 'DisplayNameMatchesOwnerUPN', 'ShortDisplayName', 'ExpiredCertificate',
+                     'ExpiredSecret', 'OldApplication', 'HighRiskAPIPermissions'
+        )]
         [string[]]$IgnoreCriteria = @()
     )
 
@@ -322,7 +326,11 @@ Export-ModuleMember -Function Get-KariHuntAppResult
 function Invoke-KariHunt {
     [CmdletBinding()][Alias('ikh')]
     param (
-        [Parameter(Mandatory = $false)][ValidateSet('KnownRogueApps', 'GenericName', 'NoAlphanumeric', 'CallbackURI', 'InsecureURI', 'DisplayNameMatchesOwnerUPN', 'ShortDisplayName', 'ExpiredCertificate', 'ExpiredSecret', 'OldApplication')]
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('KnownRogueApps', 'GenericName', 'NoAlphanumeric', 'CallbackURI',
+                     'InsecureURI', 'DisplayNameMatchesOwnerUPN', 'ShortDisplayName', 'ExpiredCertificate',
+                     'ExpiredSecret', 'OldApplication', 'HighRiskAPIPermissions'
+        )]
         [string[]]$IgnoreCriteria = @()
     )
 
