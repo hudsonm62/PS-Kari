@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog] and this project adheres to [Semantic 
 
 ## [Unreleased]
 
+## [v0.1.3] - 2025-10-31
+
+### Removed
+
+- Unnecessary permission scopes.
+
+[v0.1.3]: https://github.com/hudsonm62/PS-Kari/releases/tag/v0.1.3
+[Unreleased]: https://github.com/hudsonm62/PS-Kari/compare/v0.1.3...HEAD
+
 ## [v0.1.2] - 2025-10-28
 
 ### Fixed
@@ -13,7 +22,6 @@ The format is based on [Keep a Changelog] and this project adheres to [Semantic 
 - Issue with releaser flow.
 
 [v0.1.2]: https://github.com/hudsonm62/PS-Kari/releases/tag/v0.1.2
-[Unreleased]: https://github.com/hudsonm62/PS-Kari/compare/v0.1.2...HEAD
 
 ## [v0.1.0] - 2025-10-28
 

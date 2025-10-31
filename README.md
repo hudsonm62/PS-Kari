@@ -13,7 +13,7 @@ Kari is a PowerShell Module designed to detect suspicious and stale Enterprise A
 Kari relies on the [Microsoft Graph PowerShell Module](https://learn.microsoft.com/en-us/powershell/microsoftgraph/installation), so it's up to you to install it first. You'll also need to authenticate to your preferred tenant using the following command:
 
 ```powershell
-Connect-MgGraph -Scopes "Application.Read.All", "User.Read.All"
+Connect-MgGraph -Scopes 'Directory.Read.All'
 ```
 
 You can then install and run Kari:
