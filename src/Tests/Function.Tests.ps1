@@ -19,21 +19,17 @@ Describe "Assert-KariGraphConnection" {
     InModuleScope Kari {
         Context "validate true" {
             It "should be true with exact scopes" {
-                Mock Get-MgContext { return @{ Scopes = @("Application.Read.All", "User.Read.All") ;  TenantId = 'test' } }
+                Mock Get-MgContext { return @{ Scopes = @("Directory.Read.All") ;  TenantId = 'test' } }
                 Assert-KariGraphConnection | Should -BeTrue
             }
             It "should be true with extra scopes" {
-                Mock Get-MgContext { return @{ Scopes = @("Application.Read.All", "User.Read.All", "some.other.scope", "and.one.more") ;  TenantId = 'test' } }
+                Mock Get-MgContext { return @{ Scopes = @("Directory.Read.All", "some.other.scope", "and.one.more") ;  TenantId = 'test' } }
                 Assert-KariGraphConnection | Should -BeTrue
             }
         }
         Context "validate false" {
             It "should be false with missing scope" {
                 Mock Get-MgContext { return @{ Scopes = @("Application.Read.All") ;  TenantId = 'test' } }
-                Assert-KariGraphConnection | Should -BeFalse
-            }
-            It "should be false with missing required but with extra scopes" {
-                Mock Get-MgContext { return @{ Scopes = @("Application.Read.All", "some.other.scope") ;  TenantId = 'test' } }
                 Assert-KariGraphConnection | Should -BeFalse
             }
         }

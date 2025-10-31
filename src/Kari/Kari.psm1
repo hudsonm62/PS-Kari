@@ -10,9 +10,9 @@ function Assert-KariGraphConnection {
         return $false
     }
 
-    $ReqScopes = @("Application.Read.All", "User.Read.All")
+    $ReqScopes = @("Directory.Read.All")
     if(($ReqScopes | Where-Object { $context.Scopes -notcontains $_ }).Count -ne 0){
-        Write-Verbose "Insufficient Graph API permissions. 'Application.Read.All' and 'User.Read.All' scope is least required."
+        Write-Verbose "Insufficient Graph API permissions. 'Directory.Read.All' scope is least required."
         return $false
     }
 
@@ -351,7 +351,7 @@ function Invoke-KariHunt {
 
     # Validate Graph connection
     if(-not (Assert-KariGraphConnection)) {
-        throw "Not connected to Microsoft Graph with sufficient permissions. Please connect using Connect-MgGraph with 'Application.Read.All' and 'User.Read.All' scopes."
+        throw "Not connected to Microsoft Graph with sufficient permissions. Please connect using Connect-MgGraph with 'Directory.Read.All' scope."
     }
 
     # Get All Applications
