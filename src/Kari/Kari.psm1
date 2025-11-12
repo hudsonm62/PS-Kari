@@ -205,8 +205,8 @@ function Get-KariHuntAppResult {
             Write-Verbose "No Alphanumeric Characters detected: $($App.DisplayName) ($($App.AppId))"
         }
 
-        # Check if application reply URLs contain localhost or 127.0.0.1
-        $CallbackMatch = $RedirectUris -match 'localhost|127\.0\.0\.1'
+        # Check if application reply URLs contain localhost/access or 127.0.0.1/access
+        $CallbackMatch = $RedirectUris -match '(//)?(localhost|127\.0\.0\.1)(:\d+)?/access/?$'
         if (@($IgnoreCriteria) -notcontains 'CallbackURI' -and $CallbackMatch) {
             $results.Add(
                 $(Get-KariHuntResultObject @AppCommonMeta `

@@ -153,8 +153,8 @@ Describe "Get-KariHuntAppResult" {
         It "should identify loopback redirect URIs" {
             [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServicePrincipal[]]$TestApps = @(
                 $(Get-DummyApp -RedirectUris @('https://127.0.0.1:25/access', 'https://localhost:25/access')),
-                $(Get-DummyApp -RedirectUris @('https://127.0.0.1', 'https://localhost')),
-                $(Get-DummyApp -RedirectUris @('ms://127.0.0.1/', 'ms://localhost/'))
+                $(Get-DummyApp -RedirectUris @('https://127.0.0.1/access', 'https://localhost/access')),
+                $(Get-DummyApp -RedirectUris @('ms://127.0.0.1/access', 'ms://localhost/access'))
             )
             $results = $TestApps | Get-KariHuntAppResult
             $results | Should -Not -BeNullOrEmpty

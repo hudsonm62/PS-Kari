@@ -4,7 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog] and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [v0.2.0] - YYYY-MM-YY
+
+### Changed
+
+- Updated loopback redirect URI detection to specifically look for `/access` paths only.
+    - This reduces false positives from legitimate localhost redirect URIs.
+
+[v0.2.0]: https://github.com/hudsonm62/PS-Kari/releases/tag/v0.2.0
 
 ## [v0.1.3] - 2025-10-31
 
@@ -13,7 +20,6 @@ The format is based on [Keep a Changelog] and this project adheres to [Semantic 
 - Unnecessary permission scopes.
 
 [v0.1.3]: https://github.com/hudsonm62/PS-Kari/releases/tag/v0.1.3
-[Unreleased]: https://github.com/hudsonm62/PS-Kari/compare/v0.1.3...HEAD
 
 ## [v0.1.2] - 2025-10-28
 
