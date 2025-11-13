@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog] and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [v0.2.0] - YYYY-MM-YY
+## [v0.2.0] - 2025-11-13
 
 ### Changed
 
