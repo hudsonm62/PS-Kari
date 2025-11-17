@@ -11,7 +11,7 @@ jobs:
 
       - name: ✨ Markdownlint CLi2 Action
         if: steps.checkout.outcome == 'success' && !cancelled()
-        uses: DavidAnson/markdownlint-cli2-action@v20
+        uses: DavidAnson/markdownlint-cli2-action@v21
         with:
           globs: "**/*.md"
           config: .markdownlint-cli2.jsonc
