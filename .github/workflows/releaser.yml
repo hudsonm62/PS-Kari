@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: ⚙️ Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: 🧪 Extract Module Version
         id: get_version
@@ -103,7 +103,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: ⚙️ Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: 📦 Publish to PSGallery
         run: |
