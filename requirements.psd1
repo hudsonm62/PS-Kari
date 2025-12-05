@@ -35,7 +35,7 @@
     }
     'markdownlint-cli2'  = @{
         DependencyType   = 'Npm'
-        Version          = '0.18.1'
+        Version          = '0.19.1'
         Target           = '.'
     }
 }
