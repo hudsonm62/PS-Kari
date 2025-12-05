@@ -5,9 +5,7 @@ on:
     types: [synchronize, closed]
     branches: ["master"]
     paths:
-      - ".github/workflows/releaser.yml"
       - "src/Kari/**"
-      - "scripts/publish.ps1"
 
   workflow_dispatch:
 
