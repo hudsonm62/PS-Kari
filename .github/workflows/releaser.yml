@@ -26,6 +26,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     outputs:
       module_path: ${{ steps.zip.outputs.module_path }}
+      version: ${{ steps.get_version.outputs.module_version }}
 
     steps:
       - name: ⚙️ Checkout code
@@ -109,3 +110,27 @@ jobs:
           ./scripts/publish.ps1 -APIKey "$env:PSGALLERY_KEY" -Path "${{ needs.GitHub.outputs.module_path }}"
         env:
           PSGALLERY_KEY: ${{ secrets.PSGALLERY_KEY }}
+
+      - name: 🔔 Ntfy Publish Success
+        if: steps.publish.outcome == 'success'
+        shell: pwsh
+        env:
+          NTFY_URLTOPIC: ${{ secrets.NTFY_URLTOPIC }}
+          NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
+        run: |
+          # Send notification to ntfy instance
+          $NtfyHeaders = @{
+              Actions = "view, Open GitHub, https://github.com/hudsonm62/PS-Kari; view, Open PSGallery, https://www.powershellgallery.com/packages/PS-Kari/${{ needs.GitHub.outputs.version }}"
+              Title = "PSGallery Publish Successful!"
+              Tags = "package"
+              Icon = "https://raw.githubusercontent.com/PowerShell/PowerShell/refs/heads/master/assets/Square150x150Logo.png"
+          }
+          $Request = @{
+              Method = "POST"
+              URI = "$env:NTFY_URLTOPIC"
+              Authentication = "Bearer"
+              Token = ConvertTo-SecureString "$env:NTFY_TOKEN" -AsPlainText -Force
+              Headers = $NtfyHeaders
+              Body = "PS-Kari v${{ needs.GitHub.outputs.version }} has been successfully published to PSGallery."
+          }
+          Invoke-RestMethod @Request
