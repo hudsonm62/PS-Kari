@@ -98,13 +98,14 @@ jobs:
 
   PSGallery:
     needs: GitHub
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - name: ⚙️ Checkout code
         uses: actions/checkout@v6
 
       - name: 📦 Publish to PSGallery
+        id: publish
         run: |
-          .\scripts\publish.ps1 -APIKey "$env:PSGALLERY_KEY" -Path "${{ needs.GitHub.outputs.module_path }}"
+          ./scripts/publish.ps1 -APIKey "$env:PSGALLERY_KEY" -Path "${{ needs.GitHub.outputs.module_path }}"
         env:
           PSGALLERY_KEY: ${{ secrets.PSGALLERY_KEY }}
