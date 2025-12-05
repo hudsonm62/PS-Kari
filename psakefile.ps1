@@ -27,7 +27,7 @@ properties {
     [PesterConfiguration]$PesterConfig = New-PesterConfiguration
     $PesterConfig.Run.Exit = $false
     $PesterConfig.TestResult.Enabled = $true
-    $PesterConfig.TestResult.OutputFormat = 'NUnitXml'
+    $PesterConfig.TestResult.OutputFormat = 'JUnitXml'
     $PesterConfig.TestResult.OutputPath = Join-Path $root 'testResults.xml'
     $PesterConfig.TestDrive.Enabled = $false
     $PesterConfig.TestRegistry.Enabled = $false
