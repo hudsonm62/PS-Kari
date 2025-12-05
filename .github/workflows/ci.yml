@@ -35,6 +35,7 @@ jobs:
   test:
     # TODO - Setup matrix for PS5
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
 
@@ -78,14 +79,14 @@ jobs:
         if: steps.tests.outcome != 'skipped' && !cancelled()
         uses: actions/upload-artifact@v5
         with:
-          name: code-coverage_${{ steps.setup-meta.outputs.short-sha }}-${{ steps.setup-meta.outputs.timestamp }}
+          name: code-coverage_${{ runner.os }}-${{ steps.setup-meta.outputs.short-sha }}-${{ steps.setup-meta.outputs.timestamp }}
           path: coverage.xml
 
       - name: 🥨 Upload test results
         if: steps.tests.outcome != 'skipped' && !cancelled()
         uses: actions/upload-artifact@v5
         with:
-          name: test-results_${{ steps.setup-meta.outputs.short-sha }}-${{ steps.setup-meta.outputs.timestamp }}
+          name: test-results_${{ runner.os }}-${{ steps.setup-meta.outputs.short-sha }}-${{ steps.setup-meta.outputs.timestamp }}
           path: testResults.xml
 
       - name: 📜 Coverage Report to Codecov
