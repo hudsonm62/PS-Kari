@@ -90,7 +90,7 @@ jobs:
           files: ${{ steps.zip.outputs.release_path }}
 
       - name: 🥨 Release Artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: release_Kari-${{ steps.check-tag.outputs.module_version }}
           path: ${{ steps.zip.outputs.release_path }}

@@ -77,14 +77,14 @@ jobs:
 
       - name: 🥨 Upload coverage report
         if: steps.tests.outcome != 'skipped' && !cancelled()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: code-coverage_${{ runner.os }}-${{ steps.setup-meta.outputs.short-sha }}-${{ steps.setup-meta.outputs.timestamp }}
           path: coverage.xml
 
       - name: 🥨 Upload test results
         if: steps.tests.outcome != 'skipped' && !cancelled()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: test-results_${{ runner.os }}-${{ steps.setup-meta.outputs.short-sha }}-${{ steps.setup-meta.outputs.timestamp }}
           path: testResults.xml
