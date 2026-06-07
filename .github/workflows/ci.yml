@@ -91,7 +91,7 @@ jobs:
 
       - name: 📜 Coverage Report to Codecov
         if: steps.tests.outcome != 'skipped' && !cancelled()
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           report_type: coverage
@@ -101,7 +101,7 @@ jobs:
 
       - name: 📜 Test Results to Codecov
         if: steps.tests.outcome != 'skipped' && !cancelled()
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           report_type: test_results
