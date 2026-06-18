@@ -7,7 +7,7 @@ jobs:
     steps:
       - name: ⚙️ Checkout code
         id: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: ✨ Markdownlint CLi2 Action
         if: steps.checkout.outcome == 'success' && !cancelled()
@@ -47,7 +47,7 @@ jobs:
 
     steps:
       - name: ⚙️ Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: 🌌 Get Run Metadata
         id: setup-meta
